@@ -1,0 +1,60 @@
+import socket
+import time
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Server settings
+SERVER_IP = "XXX"  # Replace with your server's IP address
+SERVER_PORT = XXX             # Replace with your server's port number
+
+# Create server socket
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.bind((SERVER_IP, SERVER_PORT))
+s.listen(1)
+
+# Wait for client connection
+conn, addr = s.accept()
+print("Client connected from:", addr)
+
+# Create EMG data buffer
+emg_data_buffer = []
+
+# Set up matplotlib figure for real-time plotting
+plt.ion()  # Turn on interactive mode
+fig, ax = plt.subplots()
+line, = ax.plot(emg_data_buffer)
+ax.set_title('EMG Data')
+ax.set_xlabel('Sample')
+ax.set_ylabel('EMG Value')
+# ax.set_xlim(0, buffer_size)  # Set x-axis limits
+ax.set_ylim(0, 1200)  # Set y-axis limits
+
+# Receive and plot EMG data continuously
+while True:
+    data = conn.recv(1024)
+    if not data:
+        # Client has closed the connection
+        print("Client disconnected.")
+        break
+    emg_data = data.strip().decode("utf-8")  # Convert received data to string
+    if emg_data.isdigit():  # Perform data validation, assuming EMG data is a positive integer
+        emg_data = int(emg_data)
+        if emg_data >= 0 and emg_data <= 1200:  # Update this value to reflect the maximum EMG data value
+            conn.sendall(b"OK\n")  # Send acknowledgement to the client
+            # Add EMG data to buffer
+            emg_data_buffer.append(emg_data)
+            # Update plot with new data
+            x = np.arange(len(emg_data_buffer))  # Generate x-axis values
+            line.set_data(x, emg_data_buffer)  # Update plot with x and y values
+            ax.relim()
+            ax.autoscale_view()
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+            # Print received data
+            print(emg_data)
+    else:
+        print("Invalid EMG data received:", emg_data)
+
+# Close connection and server socket
+conn.close()
+s.close()
